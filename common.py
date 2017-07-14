@@ -6,6 +6,7 @@
 #
 
 import ArffReader
+import numpy as np
 
 id_field = "probe_id"
 gt_field = "hijacked"
@@ -52,6 +53,36 @@ def read_samples(path):
 	print "%s: read %d samples" % (path, len(X))
 	return (ids, X, Y, names)
 
+def load(path):
+	return pickle.load(open(path, "rb"))
+
+def test(cls, ids, X, Y):
+	ok = 0
+	err = 0
+	fp = 0
+	fn = 0
+
+	labels = cls.classes_
+	P = cls.predict_proba(X)
+	for pid, x, proba, y in zip(ids, X, P, Y):
+		i = np.argmax(proba)
+		l = labels[i]
+
+		if proba[i] < 1:
+			print "probability for id %d being %d is %g" % (pid, l, proba[i])
+
+		if l == y:
+			ok += 1
+		else:
+			print "error: %d is %s, but was classified as %s" % (pid, y, l)
+			err += 1
+			if l == 1:
+				fp += 1
+			else:
+				fn += 1
+
+	return (ok, err, fp, fn)
+
 def classify(cls, ids, X):
 	L = cls.predict(X)
 	for pid, l in zip(ids, L):
@@ -81,8 +112,9 @@ def main(prs, train, load, test):
 
 	if args.test:
 		teids, Xte, Yte, names = read_samples(args.test)
-		ok, err = test(cls, teids, Xte, Yte)
-		print "test: ok=%d   err=%d" % (ok, err)
+		ok, err, fp, fn = test(cls, teids, Xte, Yte)
+		print "ok vs err:\t%d\t%d" % (ok, err)
+		print "fp vs fn:\t%d\t%d" % (fp, fn)
 
 	if args.find:
 		fids, Xfi, Yfi, names = read_samples(args.find)
